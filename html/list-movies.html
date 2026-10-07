@@ -51,41 +51,105 @@
 	<form enctype='multipart/form-data' action='/upload_starter' method='post'>
 		<input id='file3' type="file" onchange="this.form.submit()" name='import' accept=".xml" />
 	</form>
-	<script>
-		var json;
-		var tbody = document.getElementsByTagName('tbody')[0];
-		var loadMore = document.getElementById('load_more');
-		const listReq = new XMLHttpRequest();
-		listReq.open('GET', '/movieList');
-		listReq.send();
+<script>
+var json;
+var tbody = document.getElementsByTagName("tbody")[0];
+var loadMore = document.getElementById("load_more");
+var nextIndex = 0;
 
-		var C = 0;
-		function loadRows() {
-			let c = C; C += 69;
-			for (; c < C; c++) {
-				if (c > json.length - 1) {
-					loadMore.remove();
-					break;
-				}
+var listReq = new XMLHttpRequest();
+listReq.open("GET", "/movieList", true);
+listReq.onreadystatechange = function () {
+    if (listReq.readyState !== 4) {
+        return;
+    }
 
-				const tbl = json[c];
-				const date = tbl.date.substr(0, 10) + ' ' + tbl.date.substr(11);
-				tbody.insertAdjacentHTML('beforeend',
-					'<tr><td><img src="/movie_thumbs/' + tbl.id + '.png"></td><td><div>' + tbl.title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + '</div><div>' + tbl.durationString + '</div></div></td><td><span>' + date + '</span></td><td><a href="javascript:;" onclick="popup(\'' + tbl.id + '\')"></a><a href="/go_full?movieId=' + tbl.id + '"></a><a href="/movies/' + tbl.id + '.xml" download="' + tbl.title + '"></a></td></tr>');
-			}
-		}
+    if (listReq.status < 200 || listReq.status >= 300) {
+        return;
+    }
 
-		loadMore.onclick = loadRows;
-		listReq.onreadystatechange = function (e) {
-			if (listReq.readyState != 4) return;
-			json = JSON.parse(listReq.responseText);
-			loadRows();
-		}
+    try {
+        json = JSON.parse(listReq.responseText);
+        loadRows();
+    } catch (e) {
+        // The response wasn't valid JSON.
+    }
+};
+listReq.send();
 
-		function popup(id) {
-			window.open('/player?movieId=' + id, 'MsgWindow', 'width=1280,height=723,left=' + (screen.width / 2 - 640) + ',top=' + (screen.height / 2 - 360));
-		}
-	</script>
+function loadRows() {
+    var end = Math.min(nextIndex + 69, json.length);
+
+    for (; nextIndex < end; nextIndex++) {
+        var tbl = json[nextIndex];
+        var date = tbl.date.substr(0, 10) + " " + tbl.date.substr(11);
+
+        var row = document.createElement("tr");
+
+        var imageCell = document.createElement("td");
+        var image = document.createElement("img");
+        image.src = "/movie_thumbs/" + encodeURIComponent(tbl.id) + ".png";
+        imageCell.appendChild(image);
+        row.appendChild(imageCell);
+
+        var detailsCell = document.createElement("td");
+        var title = document.createElement("div");
+        title.appendChild(document.createTextNode(tbl.title));
+
+        var duration = document.createElement("div");
+        duration.appendChild(document.createTextNode(tbl.durationString));
+
+        detailsCell.appendChild(title);
+        detailsCell.appendChild(duration);
+        row.appendChild(detailsCell);
+
+        var dateCell = document.createElement("td");
+        var dateSpan = document.createElement("span");
+        dateSpan.appendChild(document.createTextNode(date));
+        dateCell.appendChild(dateSpan);
+        row.appendChild(dateCell);
+
+        var linksCell = document.createElement("td");
+
+        var playerLink = document.createElement("a");
+        playerLink.href = "javascript:;";
+        playerLink.onclick = (function (id) {
+            return function () {
+                popup(id);
+                return false;
+            };
+        })(tbl.id);
+        linksCell.appendChild(playerLink);
+
+        var fullLink = document.createElement("a");
+        fullLink.href = "/go_full?movieId=" + encodeURIComponent(tbl.id);
+        linksCell.appendChild(fullLink);
+
+        var downloadLink = document.createElement("a");
+        downloadLink.href = "/movies/" + encodeURIComponent(tbl.id) + ".xml";
+        downloadLink.setAttribute("download", tbl.title);
+        linksCell.appendChild(downloadLink);
+
+        row.appendChild(linksCell);
+        tbody.appendChild(row);
+    }
+
+    if (nextIndex >= json.length && loadMore.parentNode) {
+        loadMore.parentNode.removeChild(loadMore);
+    }
+}
+
+loadMore.onclick = loadRows;
+
+function popup(id) {
+    window.open(
+        "/player?movieId=" + encodeURIComponent(id),
+        "MsgWindow",
+        "width=1280,height=723,left=" + (screen.width / 2 - 640) +
+        ",top=" + (screen.height / 2 - 360)
+    );
+}
+</script>
 	<style>
 		html {
 			font-family: 'Sailec', Arial, sans-serif;
