@@ -51,44 +51,121 @@
 	<form enctype='multipart/form-data' action='/upload_starter' method='post'>
 		<input id='file3' type="file" onchange="this.form.submit()" name='import' accept=".xml" />
 	</form>
-	<script>
-		var json;
-		var tbody = document.getElementsByTagName('tbody')[0];
-		var loadMore = document.getElementById('load_more');
-		const listReq = new XMLHttpRequest();
-		listReq.open('GET', '/charList');
-		listReq.send();
+<script>
+    var json;
+    var tbody = document.getElementsByTagName("tbody")[0];
+    var loadMore = document.getElementById("load_more");
+    var nextIndex = 0;
 
-		var C = 0;
-		function loadRows() {
-			let c = C; C += 69;
-			for (; c < C; c++) {
-				if (c > json.length - 1) {
-					loadMore.remove();
-					break;
-				}
+    var listReq = new XMLHttpRequest();
+    listReq.open("GET", "/charList", true);
+    listReq.onreadystatechange = function () {
+        if (listReq.readyState !== 4) {
+            return;
+        }
 
-				const tbl = json[c];
-				const date = tbl.date.substr(0, 10) + ' ' + tbl.date.substr(11);
-				tbody.insertAdjacentHTML('beforeend',
-					'<tr id="' + tbl.id + '"><td><img src="/char_thumbs/' + tbl.id + '.png"></td><td><div>Char #' + tbl.id + '</div><div>Char Id: ' + tbl.id + '</div><div>Theme ID: ' + tbl.tId + '</div></td><td><span>' + date + '</span></td><td><a href="/char_thumbs/' + tbl.id + '.png"></a><a href="/cc?themeId=' + tbl.tId + '&original_asset_id=' + tbl.id + '"></a><a href="/characters/' + tbl.id + '.xml" download="Char #' + tbl.id + '"></a></td></tr>');
-			}
-		}
+        if (listReq.status < 200 || listReq.status >= 300) {
+            return;
+        }
 
-		loadMore.onclick = loadRows;
-		listReq.onreadystatechange = function (e) {
-			if (listReq.readyState != 4) return;
-			json = JSON.parse(listReq.responseText);
-			loadRows();
-		}
-		function deleteChar(id) {
-			const xhttp = new XMLHttpRequest();
-		        xhttp.open('POST', `/ajax/deleteChar/?movieId=${id}`);
-		        xhttp.send();
-                        document.getElementById(`${id}`).style.display = "none";
-		}
-		</script>
-	<style>
+        try {
+            json = JSON.parse(listReq.responseText);
+            loadRows();
+        } catch (e) {
+            // The response wasn't valid JSON.
+        }
+    };
+    listReq.send();
+
+    function loadRows() {
+        var end = Math.min(nextIndex + 69, json.length);
+
+        for (; nextIndex < end; nextIndex++) {
+            var tbl = json[nextIndex];
+            var date = tbl.date.substr(0, 10) + " " + tbl.date.substr(11);
+
+            var row = document.createElement("tr");
+            row.id = tbl.id;
+
+            var imageCell = document.createElement("td");
+            var image = document.createElement("img");
+            image.src = "/char_thumbs/" + encodeURIComponent(tbl.id) + ".png";
+            imageCell.appendChild(image);
+            row.appendChild(imageCell);
+
+            var detailsCell = document.createElement("td");
+            var charNumber = document.createElement("div");
+            charNumber.appendChild(
+                document.createTextNode("Char #" + tbl.id)
+            );
+
+            var charId = document.createElement("div");
+            charId.appendChild(
+                document.createTextNode("Char Id: " + tbl.id)
+            );
+
+            var themeId = document.createElement("div");
+            themeId.appendChild(
+                document.createTextNode("Theme ID: " + tbl.tId)
+            );
+
+            detailsCell.appendChild(charNumber);
+            detailsCell.appendChild(charId);
+            detailsCell.appendChild(themeId);
+            row.appendChild(detailsCell);
+
+            var dateCell = document.createElement("td");
+            var dateSpan = document.createElement("span");
+            dateSpan.appendChild(document.createTextNode(date));
+            dateCell.appendChild(dateSpan);
+            row.appendChild(dateCell);
+
+            var linksCell = document.createElement("td");
+
+            var thumbnailLink = document.createElement("a");
+            thumbnailLink.href =
+                "/char_thumbs/" + encodeURIComponent(tbl.id) + ".png";
+            linksCell.appendChild(thumbnailLink);
+
+            var themeLink = document.createElement("a");
+            themeLink.href =
+                "/cc?themeId=" + encodeURIComponent(tbl.tId) +
+                "&original_asset_id=" + encodeURIComponent(tbl.id);
+            linksCell.appendChild(themeLink);
+
+            var downloadLink = document.createElement("a");
+            downloadLink.href =
+                "/characters/" + encodeURIComponent(tbl.id) + ".xml";
+            downloadLink.setAttribute("download", "Char #" + tbl.id);
+            linksCell.appendChild(downloadLink);
+
+            row.appendChild(linksCell);
+            tbody.appendChild(row);
+        }
+
+        if (nextIndex >= json.length && loadMore.parentNode) {
+            loadMore.parentNode.removeChild(loadMore);
+        }
+    }
+
+    loadMore.onclick = loadRows;
+
+    function deleteChar(id) {
+        var xhttp = new XMLHttpRequest();
+        xhttp.open(
+            "POST",
+            "/ajax/deleteChar/?movieId=" + encodeURIComponent(id),
+            true
+        );
+        xhttp.send();
+
+        var row = document.getElementById(String(id));
+        if (row) {
+            row.style.display = "none";
+        }
+    }
+</script>
+<style>
 		html {
 			font-family: 'Sailec', Arial, sans-serif;
 			-ms-text-size-adjust: 100%;
@@ -443,4 +520,3 @@
 		}
 	</style>
 </body>
-
